@@ -12,8 +12,15 @@ export default {
     darkMode: 'class',
     theme: {
         extend: {
+            colors: {
+                'primary': '#0083ff',   // Azul principal
+                'secondary': '#00dbff', // Azul claro
+                'accent': '#1647f8',    // Azul escuro
+                'white': '#ffffff',     // Branco
+                'dark': '#0b487c',      // Azul muito escuro
+            },
             fontFamily: {
-                sans: ['Figtree', ...defaultTheme.fontFamily.sans],
+                'amonos': ['"Amonos Display"', 'sans-serif'], // Fallback para sans-serif
             },
         },
     },

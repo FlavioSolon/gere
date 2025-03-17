@@ -1,3 +1,17 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+
+@font-face {
+    font-family: 'Amonos Display';
+    src: url('/fonts/amonosdisplay-regular.otf') format('opentype');
+    font-weight: 400; /* Regular */
+    font-style: normal;
+}
+
+@layer base {
+    html, body {
+        font-family: 'Amonos Display', sans-serif;
+    }
+}
