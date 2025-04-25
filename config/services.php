@@ -34,5 +34,11 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+    'serpro' => [
+        'trial_token' => env('SERPRO_API_TRIAL_TOKEN'),
+        'trial_base_url' => env('SERPRO_API_TRIAL_BASE_URL'),
+        'contratante_cnpj' => env('SERPRO_CONTRATANTE_CNPJ'),
+        'autor_cnpj' => env('SERPRO_AUTOR_CNPJ'),
+    ],
 
 ];

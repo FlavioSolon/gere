@@ -20,6 +20,8 @@ Route::get('/', function () {
 Route::middleware(['auth', 'verified', 'office'])->group(function () {
     Route::get('/dashboard', [OfficeController::class, 'dashboard'])->name('dashboard');
     Route::post('/clients', [OfficeController::class, 'storeClient'])->name('office.clients.store');
+    Route::get('/clients/{clientId}/report', [OfficeController::class, 'downloadReport'])->name('office.clients.report');
+    Route::match(['get', 'post'], '/test-api', [OfficeController::class, 'testApi'])->name('office.test-api');
 });
 
 // Painel Admin

@@ -83,6 +83,11 @@ const toggleTheme = () => {
                             </span>
                         </Link>
                     </div>
+                    <div v-if="isOffice" class="relative group">
+                        <Link :href="route('office.test-api')" class="flex items-center space-x-2 text-gray-700 dark:text-gray-200">
+                            <span>Teste</span>
+                        </Link>
+                    </div>
                     <!-- Placeholder for future office-specific links -->
                     <!--
                     <div v-if="isOffice" class="relative group">

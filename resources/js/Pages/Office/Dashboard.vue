@@ -4,13 +4,11 @@ import { ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/Office/AuthenticatedLayout.vue';
 
-
 const { props } = usePage();
 const office = props.office || null;
 const clients = props.clients || [];
 const error = props.error || null;
 const flash = props.flash || {};
-
 
 const form = ref({
     cnpj: '',
@@ -40,7 +38,22 @@ function addClient() {
 }
 
 function downloadReport(clientId) {
-    alert(`Iniciando download do relatório fiscal para o cliente ${clientId}. Integração com API Serpro seria feita aqui.`);
+    submitting.value = true;
+    router.get(
+        route('office.clients.report', { clientId }),
+        {},
+        {
+            preserveState: true,
+            onSuccess: (page) => {
+                submitting.value = false;
+                // O download será iniciado automaticamente pelo backend
+            },
+            onError: (err) => {
+                submitting.value = false;
+                alert('Erro ao baixar o relatório: ' + (err.message || 'Tente novamente.'));
+            },
+        }
+    );
 }
 </script>
 
