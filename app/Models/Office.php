@@ -4,17 +4,18 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Office extends Model
 {
     use HasFactory;
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var array<string>
-     */
+    protected $primaryKey = 'id';
+    protected $keyType = 'string';
+    public $incrementing = false;
+
     protected $fillable = [
+        'id',
         'cnpj',
         'razao_social',
         'certificate_path',
@@ -24,20 +25,10 @@ class Office extends Model
         'subscription_cnpjs',
     ];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var array<string>
-     */
     protected $hidden = [
         'certificate_password',
     ];
 
-    /**
-     * The attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
     protected function casts(): array
     {
         return [
@@ -47,27 +38,23 @@ class Office extends Model
         ];
     }
 
-    /**
-     * Get the user associated with the office.
-     */
+    protected static function boot()
+    {
+        parent::boot();
+        static::creating(function ($model) {
+            if (empty($model->id)) {
+                $model->id = (string) Str::uuid();
+            }
+        });
+    }
+
     public function user()
     {
         return $this->hasOne(User::class, 'office_id');
     }
 
-    /**
-     * Get the clients associated with the office.
-     */
     public function clients()
     {
         return $this->hasMany(Client::class, 'office_id');
     }
-
-    /**
-     * Get the payments associated with the office.
-     */
-//    public function payments()
-//    {
-//        return $this->hasMany(Payment::class, 'office_id');
-//    }
 }

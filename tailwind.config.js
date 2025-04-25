@@ -20,11 +20,9 @@ export default {
                 'dark': '#0b487c',      // Azul muito escuro
             },
             fontFamily: {
-                'amonos': ['"Amonos Display"', 'sans-serif'], // Fallback para sans-serif
+                sans: ['Inter', ...defaultTheme.fontFamily.sans], // Fonte padrão mais legível
             },
         },
     },
-
-
     plugins: [forms],
 };

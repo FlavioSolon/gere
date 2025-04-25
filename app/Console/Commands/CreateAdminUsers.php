@@ -31,7 +31,7 @@ class CreateAdminUsers extends Command
             [
                 'email' => 'solondutra73@gmail.com',
                 'password' => 'password',
-                'role' => 'admin'
+                'role' => 'office'
             ],
             [
                 'email' => 'judsonscutrim@gmail.com',

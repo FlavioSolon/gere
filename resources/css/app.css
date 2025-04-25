@@ -2,16 +2,18 @@
 @tailwind components;
 @tailwind utilities;
 
-
-@font-face {
-    font-family: 'Amonos Display';
-    src: url('/fonts/amonosdisplay-regular.otf') format('opentype');
-    font-weight: 400; /* Regular */
-    font-style: normal;
+/* Definir cores globais como variáveis CSS */
+:root {
+    --primary: #0083ff;
+    --secondary: #00dbff;
+    --accent: #1647f8;
+    --white: #ffffff;
+    --dark: #0b487c;
 }
 
+/* Aplicar fonte padrão */
 @layer base {
     html, body {
-        font-family: 'Amonos Display', sans-serif;
+        font-family: 'Inter', sans-serif;
     }
 }

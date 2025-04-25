@@ -22,13 +22,12 @@ function handleImageError() {
     document.getElementById('screenshot-container')?.classList.add('!hidden');
     document.getElementById('docs-card')?.classList.add('!row-span-1');
     document.getElementById('docs-card-content')?.classList.add('!flex-row');
-    document.getElementById('background')?.classList.add('!hidden');
 }
 </script>
 
 <template>
     <Head title="Bem-vindo ao GereHub" />
-    <div class="bg-white dark:bg-dark text-dark/50 dark:text-white/50 font-amonos">
+    <div class="bg-white dark:bg-dark text-dark/50 dark:text-white/50 font-sans">
         <div
             class="relative flex min-h-screen flex-col items-center justify-center selection:bg-primary selection:text-white"
         >

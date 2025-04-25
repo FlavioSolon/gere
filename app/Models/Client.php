@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
 
 class Client extends Model
 {
@@ -23,6 +24,7 @@ class Client extends Model
      * @var array<string>
      */
     protected $fillable = [
+        'id',
         'cnpj',
         'razao_social',
         'office_id',

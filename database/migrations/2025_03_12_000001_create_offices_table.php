@@ -14,7 +14,7 @@ return new class extends Migration
             $table->string('razao_social');
             $table->string('certificate_path')->nullable();
             $table->binary('certificate_data')->nullable();
-            $table->string('certificate_password')->nullable();
+            $table->text('certificate_password')->nullable();
             $table->integer('balance')->default(0);
             $table->integer('subscription_cnpjs')->default(0);
             $table->timestamps();
