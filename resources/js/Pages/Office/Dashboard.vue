@@ -3,6 +3,7 @@ import { Head, router } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/Office/AuthenticatedLayout.vue';
+import DownloadReportButton from '@/Components/DownloadReportButton.vue';
 
 const { props } = usePage();
 const office = props.office || null;
@@ -35,25 +36,6 @@ function addClient() {
             submitting.value = false;
         },
     });
-}
-
-function downloadReport(clientId) {
-    submitting.value = true;
-    router.get(
-        route('office.clients.report', { clientId }),
-        {},
-        {
-            preserveState: true,
-            onSuccess: (page) => {
-                submitting.value = false;
-                // O download será iniciado automaticamente pelo backend
-            },
-            onError: (err) => {
-                submitting.value = false;
-                alert('Erro ao baixar o relatório: ' + (err.message || 'Tente novamente.'));
-            },
-        }
-    );
 }
 </script>
 
@@ -184,12 +166,7 @@ function downloadReport(clientId) {
                                 <td class="px-6 py-4 text-dark dark:text-white">{{ client.cnpj }}</td>
                                 <td class="px-6 py-4 text-dark dark:text-white">{{ client.razao_social }}</td>
                                 <td class="px-6 py-4">
-                                    <button
-                                        @click="downloadReport(client.id)"
-                                        class="inline-flex items-center px-3 py-1 bg-primary hover:bg-accent text-white rounded-md transition-colors"
-                                    >
-                                        Baixar Relatório
-                                    </button>
+                                    <DownloadReportButton :client-id="client.id" />
                                 </td>
                             </tr>
                             <tr v-if="!clients.length">

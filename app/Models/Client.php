@@ -27,6 +27,7 @@ class Client extends Model
         'id',
         'cnpj',
         'razao_social',
+        'report_path',
         'office_id',
     ];
 

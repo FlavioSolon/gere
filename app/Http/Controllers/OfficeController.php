@@ -63,30 +63,83 @@ class OfficeController extends Controller
         $office = $user->office;
 
         if (!$office) {
-            return redirect()->route('dashboard')->with('error', 'Nenhum escritório associado ao usuário.');
+            Log::error('Nenhum escritório associado ao usuário', ['user_id' => $user->id]);
+            return response()->json(['error' => 'Nenhum escritório associado ao usuário.'], 403);
         }
 
+        // Buscar o cliente
         $client = Client::where('id', $clientId)->where('office_id', $office->id)->first();
-
         if (!$client) {
-            return redirect()->route('dashboard')->with('error', 'Cliente não encontrado ou não pertence ao escritório.');
+            Log::error('Cliente não encontrado ou não pertence ao escritório', [
+                'client_id' => $clientId,
+                'office_id' => $office->id,
+            ]);
+            return response()->json(['error' => 'Cliente não encontrado.'], 404);
         }
 
-        // Preparar dados para a API
-        $baseUrl = config('services.serpro.trial_base_url', env('SERPRO_API_TRIAL_BASE_URL'));
-        $token = config('services.serpro.trial_token', env('SERPRO_API_TRIAL_TOKEN'));
-        $contratanteCnpj = config('services.serpro.contratante_cnpj', env('SERPRO_CONTRATANTE_CNPJ'));
-        $autorCnpj = config('services.serpro.autor_cnpj', env('SERPRO_AUTOR_CNPJ'));
+        $cnpj = preg_replace('/[\.\-\/]/', '', $client->cnpj);
+        $tipo = strlen($cnpj) === 11 ? 1 : 2; // CPF (11 dígitos) ou CNPJ (14 dígitos)
 
-        // Normalizar CNPJ do cliente (remover pontos, barras e traços)
-        $clientCnpj = preg_replace('/[\.\-\/]/', '', $client->cnpj);
+        // Configurações da API
+        $baseUrl = config('services.serpro.trial_base_url');
+        $consumerKey = config('services.serpro.consumer_key');
+        $consumerSecret = config('services.serpro.consumer_secret');
+        $tokenUrl = config('services.serpro.token_url');
+        $contratanteCnpj = config('services.serpro.contratante_cnpj');
+        $autorCnpj = config('services.serpro.autor_cnpj');
 
-        // Passo 1: Solicitar protocolo
+        Log::info('Configurações da API Serpro carregadas', [
+            'base_url' => $baseUrl,
+            'token_url' => $tokenUrl,
+            'contratante_cnpj' => $contratanteCnpj,
+            'autor_cnpj' => $autorCnpj,
+        ]);
+
+        // Validar configurações
+        if (!$baseUrl || !$consumerKey || !$consumerSecret || !$tokenUrl || !$contratanteCnpj || !$autorCnpj) {
+            Log::error('Configurações da API Serpro incompletas', [
+                'base_url' => $baseUrl,
+                'consumer_key' => $consumerKey,
+                'token_url' => $tokenUrl,
+                'contratante_cnpj' => $contratanteCnpj,
+                'autor_cnpj' => $autorCnpj,
+            ]);
+            return response()->json(['error' => 'Configurações da API inválidas.'], 500);
+        }
+
+        // Passo 1: Obter token de acesso
+        $authString = base64_encode("$consumerKey:$consumerSecret");
+        $tokenResponse = Http::withHeaders([
+            'Authorization' => "Basic $authString",
+            'Content-Type' => 'application/x-www-form-urlencoded',
+        ])->post($tokenUrl, [
+            'grant_type' => 'client_credentials',
+        ]);
+
+        if ($tokenResponse->failed()) {
+            Log::error('Falha ao obter token de acesso', [
+                'status' => $tokenResponse->status(),
+                'body' => $tokenResponse->body(),
+            ]);
+            return response()->json(['error' => 'Erro ao autenticar com a API Serpro.'], 500);
+        }
+
+        $tokenData = $tokenResponse->json();
+        $accessToken = $tokenData['access_token'] ?? null;
+
+        if (!$accessToken) {
+            Log::error('Token de acesso não retornado', ['response' => $tokenData]);
+            return response()->json(['error' => 'Falha ao obter token de acesso.'], 500);
+        }
+
+        Log::info('Token de acesso obtido', ['access_token' => substr($accessToken, 0, 20) . '...']);
+
+        // Passo 2: Solicitar protocolo
         $protocolResponse = Http::withHeaders([
             'Accept' => 'text/plain',
-            'Authorization' => "Bearer $token",
+            'Authorization' => "Bearer $accessToken",
             'Content-Type' => 'application/json',
-        ])->post("$baseUrl/Apoiar", [
+        ])->post(rtrim($baseUrl, '/') . '/Apoiar', [
             'contratante' => [
                 'numero' => $contratanteCnpj,
                 'tipo' => 2,
@@ -96,8 +149,8 @@ class OfficeController extends Controller
                 'tipo' => 2,
             ],
             'contribuinte' => [
-                'numero' => $clientCnpj,
-                'tipo' => 2, // CNPJ
+                'numero' => $cnpj,
+                'tipo' => $tipo,
             ],
             'pedidoDados' => [
                 'idSistema' => 'SITFIS',
@@ -108,27 +161,31 @@ class OfficeController extends Controller
         ]);
 
         if ($protocolResponse->failed()) {
-            \Log::error('Falha ao solicitar protocolo SITFIS', [
+            Log::error('Falha ao solicitar protocolo SITFIS', [
                 'status' => $protocolResponse->status(),
                 'body' => $protocolResponse->body(),
+                'cnpj' => $cnpj,
             ]);
-            return redirect()->route('dashboard')->with('error', 'Erro ao solicitar protocolo do relatório fiscal. Tente novamente.');
+            return response()->json(['error' => 'Erro ao solicitar protocolo: ' . $protocolResponse->body()], 500);
         }
 
         $protocolData = $protocolResponse->json();
-        $protocoloRelatorio = $protocolData['protocolo'] ?? null;
+        Log::info('Resposta da API Apoiar', ['response' => $protocolData]);
 
-        if (!$protocoloRelatorio) {
-            \Log::error('Protocolo não retornado pela API SITFIS', ['response' => $protocolData]);
-            return redirect()->route('dashboard')->with('error', 'Protocolo do relatório não encontrado. Tente novamente.');
+        $dados = isset($protocolData['dados']) ? json_decode($protocolData['dados'], true) : null;
+        if (!$dados || !isset($dados['protocoloRelatorio'])) {
+            Log::error('Protocolo não retornado pela API SITFIS', ['response' => $protocolData]);
+            return response()->json(['error' => 'Protocolo do relatório não encontrado.'], 500);
         }
 
-        // Passo 2: Emitir relatório
+        $protocoloRelatorio = $dados['protocoloRelatorio'];
+
+        // Passo 3: Emitir relatório
         $reportResponse = Http::withHeaders([
             'Accept' => 'text/plain',
-            'Authorization' => "Bearer $token",
+            'Authorization' => "Bearer $accessToken",
             'Content-Type' => 'application/json',
-        ])->post("$baseUrl/Emitir", [
+        ])->post(rtrim($baseUrl, '/') . '/Emitir', [
             'contratante' => [
                 'numero' => $contratanteCnpj,
                 'tipo' => 2,
@@ -138,8 +195,8 @@ class OfficeController extends Controller
                 'tipo' => 2,
             ],
             'contribuinte' => [
-                'numero' => $clientCnpj,
-                'tipo' => 2,
+                'numero' => $cnpj,
+                'tipo' => $tipo,
             ],
             'pedidoDados' => [
                 'idSistema' => 'SITFIS',
@@ -150,31 +207,82 @@ class OfficeController extends Controller
         ]);
 
         if ($reportResponse->failed()) {
-            \Log::error('Falha ao emitir relatório SITFIS', [
+            Log::error('Falha ao emitir relatório SITFIS', [
                 'status' => $reportResponse->status(),
                 'body' => $reportResponse->body(),
+                'cnpj' => $cnpj,
             ]);
-            return redirect()->route('dashboard')->with('error', 'Erro ao emitir o relatório fiscal. Tente novamente.');
+            return response()->json(['error' => 'Erro ao emitir relatório: ' . $reportResponse->body()], 500);
         }
 
         $reportData = $reportResponse->json();
-        $reportBase64 = $reportData['relatorio'] ?? null;
+        Log::info('Resposta da API Emitir', ['response' => $reportData]);
 
-        if (!$reportBase64) {
-            \Log::error('Relatório não retornado pela API SITFIS', ['response' => $reportData]);
-            return redirect()->route('dashboard')->with('error', 'Relatório fiscal não encontrado. Tente novamente.');
+        $reportDados = isset($reportData['dados']) ? json_decode($reportData['dados'], true) : null;
+        if (!$reportDados || !isset($reportDados['pdf'])) {
+            Log::error('Relatório não retornado pela API SITFIS', ['response' => $reportData]);
+            return response()->json(['error' => 'Relatório não encontrado.'], 500);
         }
 
-        // Decodificar o relatório (assumindo que é um PDF em base64)
-        $reportContent = base64_decode($reportBase64);
+        $reportBase64 = $reportDados['pdf'];
+        $reportContent = base64_decode($reportBase64, true);
+        if ($reportContent === false) {
+            Log::error('Falha ao decodificar o relatório base64', ['base64' => substr($reportBase64, 0, 100)]);
+            return response()->json(['error' => 'Erro ao processar o relatório.'], 500);
+        }
 
-        // Gerar nome do arquivo
-        $fileName = 'relatorio_sitfis_' . $clientCnpj . '_' . now()->format('YmdHis') . '.pdf';
+        if (substr($reportContent, 0, 4) !== '%PDF') {
+            Log::error('Conteúdo decodificado não é um PDF válido', ['content_preview' => substr($reportContent, 0, 100)]);
+            return response()->json(['error' => 'O relatório retornado não é um PDF válido.'], 500);
+        }
 
-        // Retornar o arquivo para download
-        return response($reportContent)
-            ->header('Content-Type', 'application/pdf')
-            ->header('Content-Disposition', "attachment; filename=\"$fileName\"");
+        // Determinar o disco
+        $disk = config('filesystems.default');
+        $fileName = "reports/client_{$cnpj}_" . now()->format('YmdHis') . '.pdf';
+
+        // Deletar relatório antigo do cliente, se existir
+        if ($client->report_path) {
+            Log::info('Deletando relatório antigo do cliente', ['old_path' => $client->report_path]);
+            Storage::disk($disk)->delete($client->report_path);
+        }
+
+        // Salvar o relatório no disco
+        $stored = Storage::disk($disk)->put($fileName, $reportContent);
+        if (!$stored) {
+            Log::error('Falha ao salvar o relatório no disco', [
+                'disk' => $disk,
+                'cnpj' => $cnpj,
+                'file' => $fileName,
+            ]);
+            return response()->json(['error' => 'Erro ao salvar o relatório.'], 500);
+        }
+
+        // Atualizar o caminho do relatório no banco
+        $client->update(['report_path' => $fileName]);
+
+        // Gerar URL temporária para S3 (ou caminho local)
+        if ($disk === 's3') {
+            $url = Storage::disk('s3')->temporaryUrl($fileName, now()->addMinutes(5));
+        } else {
+            $url = Storage::disk('local')->path($fileName);
+        }
+
+        Log::info('Relatório salvo e URL gerada', [
+            'cnpj' => $cnpj,
+            'file' => $fileName,
+            'disk' => $disk,
+            'url' => $url,
+        ]);
+
+        // Retornar o PDF como download
+        return response($reportContent, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="' . $fileName . '"',
+            'Content-Length' => strlen($reportContent),
+            'Cache-Control' => 'no-cache, no-store, must-revalidate',
+            'Pragma' => 'no-cache',
+            'Expires' => '0',
+        ]);
     }
 
     public function testApi(Request $request)

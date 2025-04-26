@@ -35,7 +35,9 @@ return [
         ],
     ],
     'serpro' => [
-        'trial_token' => env('SERPRO_API_TRIAL_TOKEN'),
+        'consumer_key' => env('SERPRO_API_CONSUMER_KEY'),
+        'consumer_secret' => env('SERPRO_API_CONSUMER_SECRET'),
+        'token_url' => env('SERPRO_API_TOKEN_URL'),
         'trial_base_url' => env('SERPRO_API_TRIAL_BASE_URL'),
         'contratante_cnpj' => env('SERPRO_CONTRATANTE_CNPJ'),
         'autor_cnpj' => env('SERPRO_AUTOR_CNPJ'),
