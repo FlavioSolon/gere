@@ -29,14 +29,11 @@ class Office extends Model
         'certificate_password',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'certificate_password' => 'encrypted',
-            'balance' => 'integer',
-            'subscription_cnpjs' => 'integer',
-        ];
-    }
+    protected $casts = [
+        'certificate_password' => 'encrypted',
+        'subscription_cnpjs' => 'array',
+        'balance' => 'float',
+    ];
 
     protected static function boot()
     {

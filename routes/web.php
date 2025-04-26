@@ -21,6 +21,8 @@ Route::middleware(['auth', 'verified', 'office'])->group(function () {
     Route::get('/dashboard', [OfficeController::class, 'dashboard'])->name('dashboard');
     Route::post('/clients', [OfficeController::class, 'storeClient'])->name('office.clients.store');
     Route::get('/clients/{clientId}/report', [OfficeController::class, 'downloadReport'])->name('office.clients.report');
+    Route::get('/office/edit', [OfficeController::class, 'edit'])->name('office.edit');
+    Route::post('/office/update', [OfficeController::class, 'update'])->name('office.update');
     Route::match(['get', 'post'], '/test-api', [OfficeController::class, 'testApi'])->name('office.test-api');
 });
 
@@ -29,6 +31,7 @@ Route::middleware(['auth', 'verified', 'admin'])->prefix('admin')->group(functio
     Route::get('/', [AdminController::class, 'index'])->name('admin.index');
     Route::get('/offices/create', [AdminController::class, 'createOffice'])->name('admin.offices.create');
     Route::post('/offices', [AdminController::class, 'storeOffice'])->name('admin.offices.store');
+
 });
 
 // Rotas de Perfil

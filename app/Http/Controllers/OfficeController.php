@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
 
@@ -350,5 +351,160 @@ class OfficeController extends Controller
             'Pragma' => 'no-cache',
             'Expires' => '0',
         ]);
+    }
+
+    public function edit(Request $request)
+    {
+        $user = auth()->user();
+        $office = $user->office;
+
+        if (!$office) {
+            return redirect()->route('dashboard')->with('error', 'Nenhum escritório associado ao usuário.');
+        }
+
+
+        return Inertia::render('Office/EditOffice', [
+            'office' => [
+                'id' => $office->id,
+                'cnpj' => $office->cnpj,
+                'razao_social' => $office->razao_social,
+                'certificate_path' => $office->certificate_path,
+                'certificate_password' => $office->certificate_password ?: '', // Garante string vazia se null
+                'balance' => $office->balance,
+                'subscription_cnpjs' => $office->subscription_cnpjs,
+            ],
+        ]);
+    }
+
+    public function update(Request $request)
+    {
+        $user = auth()->user();
+        $office = $user->office;
+
+        if (!$office) {
+            \Log::error('Nenhum escritório associado ao usuário', ['user_id' => $user->id]);
+            return redirect()->route('dashboard')->with('error', 'Nenhum escritório associado ao usuário.');
+        }
+
+        // Validação dos dados
+        $validated = $request->validate([
+            'cnpj' => [
+                'required',
+                'string',
+                'regex:/^(\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}|\d{14})$/',
+                function ($attribute, $value, $fail) {
+                    if (!$this->validateCnpj($value)) {
+                        $fail('O CNPJ é inválido.');
+                    }
+                },
+            ],
+            'razao_social' => 'required|string|max:255',
+            'certificate' => 'nullable|file|mimes:pfx,p12|max:5120',
+            'certificate_password' => 'required_with:certificate|string|min:1|max:255',
+        ]);
+
+        // Preparar dados para atualização
+        $data = [
+            'cnpj' => preg_replace('/[\.\-\/]/', '', $validated['cnpj']),
+            'razao_social' => $validated['razao_social'],
+        ];
+
+        // Determinar o disco com base no ambiente
+        $disk = config('filesystems.default'); // Usa FILESYSTEM_DISK (s3 ou local)
+        \Log::info('Disco selecionado para armazenamento', ['disk' => $disk]);
+
+        // Processar o certificado, se enviado
+        if ($request->hasFile('certificate')) {
+            $certificate = $request->file('certificate');
+            if (!$certificate->isValid()) {
+                \Log::error('Arquivo de certificado inválido', ['user_id' => $user->id]);
+                return redirect()->route('office.edit')->with('error', 'O arquivo do certificado é inválido.');
+            }
+
+            $cleanCnpj = preg_replace('/[\.\-\/]/', '', $validated['cnpj']);
+            $fileName = "certificates/office_{$cleanCnpj}_" . now()->format('YmdHis') . '.' . $certificate->getClientOriginalExtension();
+
+            // Salvar no disco correto (s3 ou local)
+            $path = $certificate->storeAs('', $fileName, $disk);
+            if (!$path) {
+                \Log::error('Falha ao salvar o certificado', [
+                    'disk' => $disk,
+                    'cnpj' => $cleanCnpj,
+                    'file' => $fileName,
+                ]);
+                return redirect()->route('office.edit')->with('error', 'Erro ao salvar o certificado. Tente novamente.');
+            }
+
+            // Deletar o certificado antigo, se existir
+            if ($office->certificate_path) {
+                \Log::info('Deletando certificado antigo', ['old_path' => $office->certificate_path]);
+                Storage::disk($disk)->delete($office->certificate_path);
+            }
+
+            $data['certificate_path'] = $fileName;
+            $data['certificate_password'] = $validated['certificate_password'];
+
+            \Log::info('Certificado digital atualizado', [
+                'cnpj' => $cleanCnpj,
+                'path' => $fileName,
+                'disk' => $disk,
+            ]);
+        } elseif ($request->filled('certificate_password')) {
+            // Atualizar a senha se fornecida sem novo certificado
+            $data['certificate_password'] = $validated['certificate_password'];
+            \Log::info('Senha do certificado atualizada sem novo certificado', [
+                'office_id' => $office->id,
+                'certificate_password' => $validated['certificate_password'],
+            ]);
+        }
+
+        // Atualizar o escritório
+        $office->update($data);
+
+        \Log::info('Escritório atualizado', [
+            'office_id' => $office->id,
+            'data' => $data,
+        ]);
+
+        return redirect()->route('office.edit')->with('success', 'Dados do escritório atualizados com sucesso!');
+    }
+
+
+    /**
+     * Validar CNPJ manualmente.
+     */
+    private function validateCnpj($cnpj)
+    {
+        $cnpj = preg_replace('/[\.\-\/]/', '', $cnpj);
+
+        if (strlen($cnpj) != 14 || !is_numeric($cnpj)) {
+            return false;
+        }
+
+        if (preg_match('/(\d)\1{13}/', $cnpj)) {
+            return false;
+        }
+
+        $weights1 = [5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+        $sum = 0;
+        for ($i = 0; $i < 12; $i++) {
+            $sum += $cnpj[$i] * $weights1[$i];
+        }
+        $remainder = $sum % 11;
+        $digit1 = $remainder < 2 ? 0 : 11 - $remainder;
+
+        if ($cnpj[12] != $digit1) {
+            return false;
+        }
+
+        $weights2 = [6, 5, 4, 3, 2, 9, 8, 7, 6, 5, 4, 3, 2];
+        $sum = 0;
+        for ($i = 0; $i < 13; $i++) {
+            $sum += $cnpj[$i] * $weights2[$i];
+        }
+        $remainder = $sum % 11;
+        $digit2 = $remainder < 2 ? 0 : 11 - $remainder;
+
+        return $cnpj[13] == $digit2;
     }
 }
