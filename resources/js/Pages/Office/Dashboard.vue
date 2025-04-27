@@ -1,41 +1,71 @@
 <script setup>
-import { Head, router } from '@inertiajs/vue3';
+import { Head } from '@inertiajs/vue3';
 import { ref } from 'vue';
 import { usePage } from '@inertiajs/vue3';
+import { PlusIcon } from '@heroicons/vue/24/outline';
 import AuthenticatedLayout from '@/Layouts/Office/AuthenticatedLayout.vue';
-import DownloadReportButton from '@/Components/DownloadReportButton.vue';
+import OfficeInfo from '@/Components/Office/Dashboard/OfficeInfo.vue';
+import BalanceCard from '@/Components/Office/Dashboard/BalanceCard.vue';
+import ClientListDesktop from '@/Components/Office/Dashboard/ClientListDesktop.vue';
+import ClientListMobile from '@/Components/Office/Dashboard/ClientListMobile.vue';
+import AddClientModal from '@/Components/Office/Dashboard/AddClientModal.vue';
+import EditClientModal from '@/Components/Office/Dashboard/EditClientModal.vue';
+import ReportSummaryModal from '@/Components/Office/Dashboard/ReportSummaryModal.vue';
+import ActionButton from '@/Components/Office/Common/ActionButton.vue';
+
+// Dados estáticos
+const staticOffice = {
+    razao_social: 'Escritório Contábil XYZ',
+    cnpj: '55.025.422/0001-03',
+    balance: 150000, // R$ 1500,00
+    subscription_cnpjs: 2,
+};
+
+const staticClients = [
+    {
+        id: 1,
+        cnpj: '12.345.678/0001-99',
+        razao_social: 'Cliente Teste LTDA',
+        reports: {
+            '2025-01': true,
+            '2025-02': false,
+        },
+    },
+    {
+        id: 2,
+        cnpj: '98.765.432/0001-00',
+        razao_social: 'Empresa Exemplo S/A',
+        reports: {
+            '2025-01': false,
+            '2025-02': true,
+        },
+    },
+];
 
 const { props } = usePage();
-const office = props.office || null;
-const clients = props.clients || [];
-const error = props.error || null;
 const flash = props.flash || {};
 
-const form = ref({
-    cnpj: '',
-    razao_social: '',
-});
-const errors = ref({});
-const submitting = ref(false);
+const showAddModal = ref(false);
+const showEditModal = ref(false);
+const showReportModal = ref(false);
+const selectedClient = ref(null);
 
-function addClient() {
-    if (!office) {
-        alert('Nenhum escritório associado. Contate o suporte.');
-        return;
-    }
-    submitting.value = true;
-    router.post(route('office.clients.store'), form.value, {
-        preserveState: true,
-        onSuccess: () => {
-            form.value = { cnpj: '', razao_social: '' };
-            errors.value = {};
-            submitting.value = false;
-        },
-        onError: (err) => {
-            errors.value = err;
-            submitting.value = false;
-        },
-    });
+function openEditModal(client) {
+    selectedClient.value = client;
+    showEditModal.value = true;
+}
+
+function openReportModal(client) {
+    selectedClient.value = client;
+    showReportModal.value = true;
+}
+
+function updateClient(updatedData) {
+    console.log('Cliente atualizado:', updatedData); // Simulação
+}
+
+function generateMultipleReports(clientIds) {
+    console.log('Gerando relatórios para clientes:', clientIds); // Simulação
 }
 </script>
 
@@ -43,141 +73,80 @@ function addClient() {
     <Head title="Painel do Escritório - GereHub" />
     <AuthenticatedLayout>
         <template #header>
-            <h2 class="text-xl font-semibold leading-tight text-gray-800 dark:text-gray-200">
+            <h2 class="text-3xl font-bold text-gray-900 dark:text-white animate__animated animate__fadeIn">
                 Painel do Escritório
             </h2>
         </template>
-        <div class="bg-white dark:bg-dark text-dark dark:text-white font-sans min-h-screen">
+        <div class="bg-gray-100 dark:bg-gray-900 text-gray-900 dark:text-white font-sans min-h-screen">
             <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10">
-                <!-- Mensagem de Erro do Flash -->
-                <div v-if="flash.error" class="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md">
+                <!-- Mensagens -->
+                <div v-if="flash.error" class="mb-6 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-xl shadow-md animate__animated animate__shakeX">
                     {{ flash.error }}
                 </div>
-
-                <!-- Mensagem de Erro Interno -->
-                <div v-if="error && !office" class="mb-4 p-4 bg-red-100 dark:bg-red-900 text-red-700 dark:text-red-200 rounded-md">
-                    {{ error }}
-                </div>
-
-                <!-- Mensagem de Sucesso -->
-                <div v-if="flash.success" class="mb-4 p-4 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-md">
+                <div v-if="flash.success" class="mb-6 p-4 bg-green-100 dark:bg-green-900 text-green-700 dark:text-green-200 rounded-xl shadow-md animate__animated animate__bounceIn">
                     {{ flash.success }}
                 </div>
 
                 <!-- Informações do Escritório -->
-                <section v-if="office" class="mb-12">
-                    <div class="bg-primary/5 dark:bg-secondary/10 rounded-lg p-6 shadow-sm">
-                        <h2 class="text-xl font-semibold text-dark dark:text-white mb-4">
-                            {{ office.razao_social }}
-                        </h2>
-                        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                            <div>
-                                <p class="text-sm text-dark/60 dark:text-white/60">CNPJ</p>
-                                <p class="text-dark dark:text-white">{{ office.cnpj }}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-dark/60 dark:text-white/60">Saldo</p>
-                                <p class="text-dark dark:text-white">R$ {{ office.balance / 100 }}</p>
-                            </div>
-                            <div>
-                                <p class="text-sm text-dark/60 dark:text-white/60">CNPJs Cadastrados</p>
-                                <p class="text-dark dark:text-white">{{ office.subscription_cnpjs }}</p>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+                <OfficeInfo :office="staticOffice" class="mb-8" />
 
-                <!-- Adicionar Cliente -->
-                <section v-if="office" class="mb-12">
-                    <h2 class="text-xl font-semibold text-dark dark:text-white mb-4">
-                        Adicionar Novo Cliente
-                    </h2>
-                    <div class="bg-white dark:bg-dark rounded-lg p-6 shadow-sm">
-                        <form @submit.prevent="addClient" class="space-y-4">
-                            <div>
-                                <label for="cnpj" class="block text-sm font-medium text-dark/80 dark:text-white/80">
-                                    CNPJ
-                                </label>
-                                <input
-                                    id="cnpj"
-                                    v-model="form.cnpj"
-                                    type="text"
-                                    class="mt-1 block w-full rounded-md border border-primary/20 dark:border-secondary/20 bg-white dark:bg-dark text-dark dark:text-white focus:ring-accent focus:border-accent"
-                                    placeholder="00.000.000/0000-00"
-                                />
-                                <p v-if="errors.cnpj" class="mt-1 text-sm text-red-600">{{ errors.cnpj }}</p>
-                            </div>
-                            <div>
-                                <label for="razao_social" class="block text-sm font-medium text-dark/80 dark:text-white/80">
-                                    Razão Social
-                                </label>
-                                <input
-                                    id="razao_social"
-                                    v-model="form.razao_social"
-                                    type="text"
-                                    class="mt-1 block w-full rounded-md border border-primary/20 dark:border-secondary/20 bg-white dark:bg-dark text-dark dark:text-white focus:ring-accent focus:border-accent"
-                                    placeholder="Nome da Empresa"
-                                />
-                                <p v-if="errors.razao_social" class="mt-1 text-sm text-red-600">{{ errors.razao_social }}</p>
-                            </div>
-                            <button
-                                type="submit"
-                                :disabled="submitting"
-                                class="inline-flex items-center px-4 py-2 bg-primary hover:bg-accent text-white rounded-md transition-colors disabled:opacity-50"
-                            >
-                                <svg
-                                    v-if="submitting"
-                                    class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    fill="none"
-                                    viewBox="0 0 24 24"
-                                >
-                                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"></path>
-                                </svg>
-                                {{ submitting ? 'Adicionando...' : 'Adicionar Cliente' }}
-                            </button>
-                        </form>
+                <!-- Cabeçalho com Saldo e Botão Adicionar -->
+                <div class="flex justify-between items-center mb-6">
+                    <div></div> <!-- Espaço vazio para alinhamento -->
+                    <div class="flex items-center space-x-4">
+                        <BalanceCard :balance="staticOffice.balance" />
+                        <ActionButton
+                            type="primary"
+                            :icon="PlusIcon"
+                            @click="showAddModal = true"
+                            class="md:hidden rounded-full h-14 w-14 p-0 flex items-center justify-center"
+                        >
+                            <span class="sr-only">Adicionar Cliente</span>
+                        </ActionButton>
+                        <ActionButton
+                            type="primary"
+                            :icon="PlusIcon"
+                            @click="showAddModal = true"
+                            class="hidden md:flex"
+                        >
+                            Adicionar Cliente
+                        </ActionButton>
                     </div>
-                </section>
+                </div>
 
                 <!-- Lista de Clientes -->
-                <section v-if="office">
-                    <h2 class="text-xl font-semibold text-dark dark:text-white mb-4">
-                        Clientes
-                    </h2>
-                    <div class="bg-white dark:bg-dark rounded-lg shadow-sm overflow-hidden">
-                        <table class="min-w-full divide-y divide-primary/20 dark:divide-secondary/20">
-                            <thead class="bg-primary/5 dark:bg-secondary/10">
-                            <tr>
-                                <th class="px-6 py-3 text-left text-sm font-medium text-dark/80 dark:text-white/80">
-                                    CNPJ
-                                </th>
-                                <th class="px-6 py-3 text-left text-sm font-medium text-dark/80 dark:text-white/80">
-                                    Razão Social
-                                </th>
-                                <th class="px-6 py-3 text-left text-sm font-medium text-dark/80 dark:text-white/80">
-                                    Ações
-                                </th>
-                            </tr>
-                            </thead>
-                            <tbody class="divide-y divide-primary/20 dark:divide-secondary/20">
-                            <tr v-for="client in clients" :key="client.id">
-                                <td class="px-6 py-4 text-dark dark:text-white">{{ client.cnpj }}</td>
-                                <td class="px-6 py-4 text-dark dark:text-white">{{ client.razao_social }}</td>
-                                <td class="px-6 py-4">
-                                    <DownloadReportButton :client-id="client.id" />
-                                </td>
-                            </tr>
-                            <tr v-if="!clients.length">
-                                <td colspan="3" class="px-6 py-4 text-center text-dark/60 dark:text-white/60">
-                                    Nenhum cliente cadastrado.
-                                </td>
-                            </tr>
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+                <div class="md:hidden">
+                    <ClientListMobile
+                        :clients="staticClients"
+                        @edit-client="openEditModal"
+                        @view-reports="openReportModal"
+                        @generate-reports="generateMultipleReports"
+                        @download-report="console.log('Baixar relatório:', $event)"
+                    />
+                </div>
+                <div class="hidden md:block">
+                    <ClientListDesktop
+                        :clients="staticClients"
+                        @edit-client="openEditModal"
+                        @view-reports="openReportModal"
+                        @generate-reports="generateMultipleReports"
+                        @download-report="console.log('Baixar relatório:', $event)"
+                    />
+                </div>
+
+                <!-- Modais -->
+                <AddClientModal :show="showAddModal" @close="showAddModal = false" />
+                <EditClientModal
+                    :show="showEditModal"
+                    :client="selectedClient"
+                    @close="showEditModal = false"
+                    @update="updateClient"
+                />
+                <ReportSummaryModal
+                    :show="showReportModal"
+                    :client="selectedClient"
+                    @close="showReportModal = false"
+                />
             </div>
         </div>
     </AuthenticatedLayout>

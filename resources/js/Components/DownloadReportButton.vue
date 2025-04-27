@@ -1,7 +1,8 @@
 <script setup>
 import { ref } from 'vue';
-import { router } from '@inertiajs/vue3';
 import axios from 'axios';
+import { ArrowDownTrayIcon } from '@heroicons/vue/24/outline';
+import ActionButton from './Office/Common/ActionButton.vue';
 
 const props = defineProps({
     clientId: {
@@ -11,13 +12,15 @@ const props = defineProps({
 });
 
 const submitting = ref(false);
+const errorMessage = ref(null);
 
 async function downloadReport() {
     submitting.value = true;
+    errorMessage.value = null;
 
     try {
         const response = await axios.get(route('office.clients.report', { clientId: props.clientId }), {
-            responseType: 'blob', // Para lidar com PDF
+            responseType: 'blob',
             headers: {
                 'Accept': 'application/pdf, application/json',
             },
@@ -37,19 +40,21 @@ async function downloadReport() {
         } else {
             const text = await response.data.text();
             const errorData = JSON.parse(text);
-            alert('Erro ao baixar o relatório: ' + (errorData.error || 'Tente novamente.'));
+            errorMessage.value = errorData.error || 'Resposta inesperada do servidor.';
         }
     } catch (error) {
-        let errorMessage = 'Erro ao conectar com o servidor.';
         if (error.response) {
             const contentType = error.response.headers['content-type'];
             if (contentType && contentType.includes('application/json')) {
                 const text = await error.response.data.text();
                 const errorData = JSON.parse(text);
-                errorMessage = errorData.error || 'Erro ao baixar o relatório.';
+                errorMessage.value = errorData.error || 'Erro ao baixar o relatório.';
+            } else {
+                errorMessage.value = 'Erro desconhecido do servidor.';
             }
+        } else {
+            errorMessage.value = 'Erro ao conectar com o servidor: ' + error.message;
         }
-        alert(errorMessage);
         console.error('Erro ao baixar relatório:', error);
     } finally {
         submitting.value = false;
@@ -58,21 +63,15 @@ async function downloadReport() {
 </script>
 
 <template>
-    <button
-        @click="downloadReport"
-        :disabled="submitting"
-        class="inline-flex items-center px-3 py-1 bg-primary hover:bg-accent text-white rounded-md transition-colors disabled:opacity-50"
-    >
-        <svg
-            v-if="submitting"
-            class="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
-            xmlns="http://www.w3.org/2000/svg"
-            fill="none"
-            viewBox="0 0 24 24"
+    <div>
+        <ActionButton
+            type="primary"
+            :icon="ArrowDownTrayIcon"
+            :loading="submitting"
+            @click="downloadReport"
         >
-            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8h8a8 8 0 01-16 0z"></path>
-        </svg>
-        {{ submitting ? 'Baixando...' : 'Baixar Relatório' }}
-    </button>
+            Baixar
+        </ActionButton>
+        <p v-if="errorMessage" class="mt-2 text-sm text-red-600">{{ errorMessage }}</p>
+    </div>
 </template>
