@@ -31,7 +31,7 @@ function submit() {
         },
         onError: (errors) => {
             submitting.value = false;
-            console.log('Erros do formulário:', errors); // Log para depuração
+            console.log('Erros do formulário:', errors);
         },
     });
 }
@@ -63,49 +63,52 @@ function submit() {
                         <form @submit.prevent="submit" class="space-y-6" enctype="multipart/form-data">
                             <!-- Razão Social -->
                             <div>
-                                <label for="razao_social" class="block text-sm font-medium text-dark/80 dark:text-white/80">
+                                <label for="edit-office-razao_social" class="block text-sm font-medium text-dark/80 dark:text-white/80">
                                     Razão Social
                                 </label>
                                 <input
-                                    id="razao_social"
+                                    id="edit-office-razao_social"
                                     v-model="form.razao_social"
                                     type="text"
                                     class="mt-1 block w-full rounded-md border border-primary/20 dark:border-secondary/20 bg-white dark:bg-dark text-dark dark:text-white focus:ring-accent focus:border-accent"
                                     placeholder="Ex: Contabilidade Teste LTDA"
+                                    aria-describedby="edit-office-razao_social-error"
                                 />
-                                <p v-if="form.errors.razao_social" class="mt-1 text-sm text-red-600">{{ form.errors.razao_social }}</p>
+                                <p v-if="form.errors.razao_social" id="edit-office-razao_social-error" class="mt-1 text-sm text-red-600">{{ form.errors.razao_social }}</p>
                             </div>
 
                             <!-- CNPJ -->
                             <div>
-                                <label for="cnpj" class="block text-sm font-medium text-dark/80 dark:text-white/80">
+                                <label for="edit-office-cnpj" class="block text-sm font-medium text-dark/80 dark:text-white/80">
                                     CNPJ
                                 </label>
                                 <input
-                                    id="cnpj"
+                                    id="edit-office-cnpj"
                                     v-model="form.cnpj"
                                     v-mask="'##.###.###/####-##'"
                                     type="text"
                                     class="mt-1 block w-full rounded-md border border-primary/20 dark:border-secondary/20 bg-white dark:bg-dark text-dark dark:text-white focus:ring-accent focus:border-accent"
                                     placeholder="00.000.000/0000-00"
+                                    aria-describedby="edit-office-cnpj-error"
                                 />
-                                <p v-if="form.errors.cnpj" class="mt-1 text-sm text-red-600">{{ form.errors.cnpj }}</p>
+                                <p v-if="form.errors.cnpj" id="edit-office-cnpj-error" class="mt-1 text-sm text-red-600">{{ form.errors.cnpj }}</p>
                             </div>
 
                             <!-- Certificado Digital -->
                             <div>
-                                <label for="certificate" class="block text-sm font-medium text-dark/80 dark:text-white/80">
+                                <label for="edit-office-certificate" class="block text-sm font-medium text-dark/80 dark:text-white/80">
                                     Certificado Digital (.pfx ou .p12)
                                 </label>
                                 <input
-                                    id="certificate"
+                                    id="edit-office-certificate"
                                     name="certificate"
                                     type="file"
                                     accept=".pfx,.p12"
                                     class="mt-1 block w-full text-dark dark:text-white"
                                     @change="form.certificate = $event.target.files[0] || null"
+                                    aria-describedby="edit-office-certificate-error"
                                 />
-                                <p v-if="form.errors.certificate" class="mt-1 text-sm text-red-600">{{ form.errors.certificate }}</p>
+                                <p v-if="form.errors.certificate" id="edit-office-certificate-error" class="mt-1 text-sm text-red-600">{{ form.errors.certificate }}</p>
                                 <p v-if="office.certificate_path" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
                                     Certificado atual: {{ office.certificate_path.split('/').pop() }}
                                 </p>
@@ -113,15 +116,16 @@ function submit() {
 
                             <!-- Senha do Certificado -->
                             <div class="relative">
-                                <label for="certificate_password" class="block text-sm font-medium text-dark/80 dark:text-white/80">
+                                <label for="edit-office-certificate_password" class="block text-sm font-medium text-dark/80 dark:text-white/80">
                                     Senha do Certificado
                                 </label>
                                 <input
-                                    id="certificate_password"
+                                    id="edit-office-certificate_password"
                                     v-model="form.certificate_password"
                                     :type="showPassword ? 'text' : 'password'"
                                     class="mt-1 block w-full rounded-md border border-primary/20 dark:border-secondary/20 bg-white dark:bg-dark text-dark dark:text-white focus:ring-accent focus:border-accent pr-10"
                                     placeholder="Digite a senha do certificado"
+                                    aria-describedby="edit-office-certificate_password-error"
                                 />
                                 <button
                                     type="button"
@@ -148,7 +152,7 @@ function submit() {
                                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.542-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.542 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
                                     </svg>
                                 </button>
-                                <p v-if="form.errors.certificate_password" class="mt-1 text-sm text-red-600">{{ form.errors.certificate_password }}</p>
+                                <p v-if="form.errors.certificate_password" id="edit-office-certificate_password-error" class="mt-1 text-sm text-red-600">{{ form.errors.certificate_password }}</p>
                             </div>
 
                             <!-- Botão de Envio -->
