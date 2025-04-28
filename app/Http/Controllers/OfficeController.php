@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Client;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
 use Illuminate\Support\Str;
@@ -470,14 +471,13 @@ class OfficeController extends Controller
             return redirect()->route('dashboard')->with('error', 'Nenhum escritório associado ao usuário.');
         }
 
-
         return Inertia::render('Office/EditOffice', [
             'office' => [
                 'id' => $office->id,
                 'cnpj' => $office->cnpj,
                 'razao_social' => $office->razao_social,
                 'certificate_path' => $office->certificate_path,
-                'certificate_password' => $office->certificate_password ?: '', // Garante string vazia se null
+                'certificate_password' => $office->certificate_password ?: '',
                 'balance' => $office->balance,
                 'subscription_cnpjs' => $office->subscription_cnpjs,
             ],
@@ -490,7 +490,7 @@ class OfficeController extends Controller
         $office = $user->office;
 
         if (!$office) {
-            \Log::error('Nenhum escritório associado ao usuário', ['user_id' => $user->id]);
+            Log::error('Nenhum escritório associado ao usuário', ['user_id' => $user->id]);
             return redirect()->route('dashboard')->with('error', 'Nenhum escritório associado ao usuário.');
         }
 
@@ -507,7 +507,36 @@ class OfficeController extends Controller
                 },
             ],
             'razao_social' => 'required|string|max:255',
-            'certificate' => 'nullable|file|mimes:pfx,p12|max:5120',
+            // Validação ajustada para certificate
+            'certificate' => [
+                'nullable',
+                'file',
+                function ($attribute, $value, $fail) use ($request) {
+                    if (!$request->hasFile('certificate')) {
+                        return; // Campo opcional, prosseguir se não enviado
+                    }
+
+                    $file = $request->file('certificate');
+                    $extension = strtolower($file->getClientOriginalExtension());
+                    $mimeType = $file->getClientMimeType();
+
+                    Log::info('Validação do certificado', [
+                        'extension' => $extension,
+                        'mime_type' => $mimeType,
+                        'size' => $file->getSize(),
+                    ]);
+
+                    // Verificar a extensão manualmente
+                    if (!in_array($extension, ['pfx', 'p12'])) {
+                        $fail('O campo de certificado deve ser um arquivo do tipo: pfx, p12.');
+                    }
+
+                    // Verificar o tamanho (máximo 5MB)
+                    if ($file->getSize() > 5120 * 1024) {
+                        $fail('O certificado deve ter no máximo 5MB.');
+                    }
+                },
+            ],
             'certificate_password' => 'required_with:certificate|string|min:1|max:255',
         ]);
 
@@ -518,14 +547,14 @@ class OfficeController extends Controller
         ];
 
         // Determinar o disco com base no ambiente
-        $disk = config('filesystems.default'); // Usa FILESYSTEM_DISK (s3 ou local)
-        \Log::info('Disco selecionado para armazenamento', ['disk' => $disk]);
+        $disk = config('filesystems.default');
+        Log::info('Disco selecionado para armazenamento', ['disk' => $disk]);
 
         // Processar o certificado, se enviado
         if ($request->hasFile('certificate')) {
             $certificate = $request->file('certificate');
             if (!$certificate->isValid()) {
-                \Log::error('Arquivo de certificado inválido', ['user_id' => $user->id]);
+                Log::error('Arquivo de certificado inválido', ['user_id' => $user->id]);
                 return redirect()->route('office.edit')->with('error', 'O arquivo do certificado é inválido.');
             }
 
@@ -535,7 +564,7 @@ class OfficeController extends Controller
             // Salvar no disco correto (s3 ou local)
             $path = $certificate->storeAs('', $fileName, $disk);
             if (!$path) {
-                \Log::error('Falha ao salvar o certificado', [
+                Log::error('Falha ao salvar o certificado', [
                     'disk' => $disk,
                     'cnpj' => $cleanCnpj,
                     'file' => $fileName,
@@ -545,22 +574,21 @@ class OfficeController extends Controller
 
             // Deletar o certificado antigo, se existir
             if ($office->certificate_path) {
-                \Log::info('Deletando certificado antigo', ['old_path' => $office->certificate_path]);
+                Log::info('Deletando certificado antigo', ['old_path' => $office->certificate_path]);
                 Storage::disk($disk)->delete($office->certificate_path);
             }
 
             $data['certificate_path'] = $fileName;
             $data['certificate_password'] = $validated['certificate_password'];
 
-            \Log::info('Certificado digital atualizado', [
+            Log::info('Certificado digital atualizado', [
                 'cnpj' => $cleanCnpj,
                 'path' => $fileName,
                 'disk' => $disk,
             ]);
         } elseif ($request->filled('certificate_password')) {
-            // Atualizar a senha se fornecida sem novo certificado
             $data['certificate_password'] = $validated['certificate_password'];
-            \Log::info('Senha do certificado atualizada sem novo certificado', [
+            Log::info('Senha do certificado atualizada sem novo certificado', [
                 'office_id' => $office->id,
                 'certificate_password' => $validated['certificate_password'],
             ]);
@@ -569,7 +597,7 @@ class OfficeController extends Controller
         // Atualizar o escritório
         $office->update($data);
 
-        \Log::info('Escritório atualizado', [
+        Log::info('Escritório atualizado', [
             'office_id' => $office->id,
             'data' => $data,
         ]);

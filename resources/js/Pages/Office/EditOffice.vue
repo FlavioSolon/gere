@@ -24,14 +24,14 @@ function submit() {
     submitting.value = true;
     form.post(route('office.update'), {
         forceFormData: true,
-        preserveState: true, // Preserva o estado para evitar reset
+        preserveState: true,
         onSuccess: () => {
             submitting.value = false;
-            // Apenas resetar o campo de arquivo, manter a senha
             form.reset('certificate');
         },
-        onError: () => {
+        onError: (errors) => {
             submitting.value = false;
+            console.log('Erros do formulário:', errors); // Log para depuração
         },
     });
 }
@@ -60,7 +60,7 @@ function submit() {
                 <!-- Formulário de Edição -->
                 <section class="mb-12">
                     <div class="bg-white dark:bg-dark rounded-lg p-6 shadow-sm">
-                        <form @submit.prevent="submit" class="space-y-6">
+                        <form @submit.prevent="submit" class="space-y-6" enctype="multipart/form-data">
                             <!-- Razão Social -->
                             <div>
                                 <label for="razao_social" class="block text-sm font-medium text-dark/80 dark:text-white/80">
@@ -99,10 +99,11 @@ function submit() {
                                 </label>
                                 <input
                                     id="certificate"
+                                    name="certificate"
                                     type="file"
                                     accept=".pfx,.p12"
                                     class="mt-1 block w-full text-dark dark:text-white"
-                                    @change="form.certificate = $event.target.files[0]"
+                                    @change="form.certificate = $event.target.files[0] || null"
                                 />
                                 <p v-if="form.errors.certificate" class="mt-1 text-sm text-red-600">{{ form.errors.certificate }}</p>
                                 <p v-if="office.certificate_path" class="mt-2 text-sm text-gray-600 dark:text-gray-400">
